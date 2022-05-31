@@ -88,3 +88,25 @@ class DefaultInferenceHandler(object):
             if content_type in encoder.SUPPORTED_CONTENT_TYPES:
                 return encoder.encode(prediction, content_type), content_type
         raise errors.UnsupportedFormatError(accept)
+
+    def default_explain_fn(self, data, model, enable_explanations):  # pylint: disable=no-self-use
+        """Function responsible for computing explanations for the predictions offered by the model.
+
+        Args:
+            data: deserialized data returned by the input_fn
+            model (obj): model loaded by the model_fn
+            enable_explanations (list): list of booleans that indicate whether or the corresponding instance in data
+             should be explained
+
+        Returns:
+            obj: prediction data.
+
+        """
+        raise NotImplementedError(
+            textwrap.dedent(
+                """
+            Please provide a explain_fn implementation.
+            See documentation for explain_fn at https://sagemaker.readthedocs.io/en/stable/
+            """
+            )
+        )

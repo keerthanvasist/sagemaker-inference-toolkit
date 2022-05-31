@@ -1,4 +1,4 @@
-![SageMaker](https://github.com/aws/sagemaker-inference-toolkit/raw/master/branding/icon/sagemaker-banner.png)
+docker run --name sagemaker-inference-toolkit-test -p 8080:8080curl -X POST http://127.0.0.1:8080/predictions![SageMaker](https://github.com/aws/sagemaker-inference-toolkit/raw/master/branding/icon/sagemaker-banner.png)
 
 # SageMaker Inference Toolkit
 

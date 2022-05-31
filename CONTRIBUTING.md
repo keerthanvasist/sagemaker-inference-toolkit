@@ -53,7 +53,7 @@ You should only worry about manually running any new integration tests that you 
 1. Follow the instructions at [Set Up the AWS Command Line Interface (AWS CLI)](https://docs.aws.amazon.com/polly/latest/dg/setup-aws-cli.html).
 1. To run a test, specify the test file and method you want to run per the following command: `tox -e py36 -- -s -vv test/integration/local/test_multi_model.py::test_ping`
    * Note that the coverage test will fail if you only run a single test, so make sure to surround the command with `export IGNORE_COVERAGE=-` and `unset IGNORE_COVERAGE`
-   * Example: `export IGNORE_COVERAGE=- ; tox -e py36 -- -s -vv test/integration/local/test_multi_model.py::test_ping ; unset IGNORE_COVERAGE`
+   * Example: `export IGNORE_COVERAGE=- ; tox -e py37 -- -s -vv test/integration/local/test_dummy_multi_model.py::test_ping ; unset IGNORE_COVERAGE`
 
 
 ### Making and testing your change

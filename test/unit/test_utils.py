@@ -100,3 +100,10 @@ def test_remove_crlf():
     sanitized_string = "test:  string"
 
     assert sanitized_string == remove_crlf(illegal_string)
+
+
+def test_evaluator():
+    from sagemaker_inference.evaluators import JMESPathExpressionEvaluator
+    expression_evaluator = JMESPathExpressionEvaluator("`true`")
+    enable = expression_evaluator.evaluate_all([[1, 2, 3]])
+    assert enable[0] == True

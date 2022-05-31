@@ -17,7 +17,11 @@ requests.
 from __future__ import absolute_import
 
 import importlib
+import os
 import traceback
+from typing import List
+
+from sagemaker_inference.evaluators import JMESPathExpressionEvaluator
 
 try:
     from importlib.util import find_spec  # pylint: disable=ungrouped-imports
@@ -65,6 +69,10 @@ class Transformer(object):
         self._initialized = False
         self._environment = None
         self._model = None
+        enable_explanations_expression = os.getenv("SAGEMAKER_HANDLER")
+        self._expression_evaluator = None
+        if enable_explanations_expression:
+            self._expression_evaluator = JMESPathExpressionEvaluator(enable_explanations_expression)
 
         self._pre_model_fn = None
         self._model_warmup_fn = None
@@ -73,6 +81,7 @@ class Transformer(object):
         self._input_fn = None
         self._predict_fn = None
         self._output_fn = None
+        self._explain_fn = None
 
     @staticmethod
     def handle_error(context, inference_exception, trace):
@@ -125,7 +134,8 @@ class Transformer(object):
             if content_type in content_types.UTF8_TYPES:
                 input_data = input_data.decode("utf-8")
 
-            result = self._transform_fn(self._model, input_data, content_type, accept)
+            enable_explanations_header = request_property.get("X-Amzn-SageMaker-Enable-Explanations")
+            result = self._transform_fn(self._model, input_data, content_type, accept, enable_explanations_header)
 
             response = result
             response_content_type = accept
@@ -136,6 +146,7 @@ class Transformer(object):
                 response_content_type = result[1]
 
             context.set_response_content_type(0, response_content_type)
+            context.set_response_header(0, "X-Amzn-Number-Of-Explanations", "5")
             return [response]
         except Exception as e:  # pylint: disable=broad-except
             trace = traceback.format_exc()
@@ -191,6 +202,7 @@ class Transformer(object):
             output_fn = getattr(user_module, "output_fn", None)
             pre_model_fn = getattr(user_module, "pre_model_fn", None)
             model_warmup_fn = getattr(user_module, "model_warmup_fn", None)
+            explain_fn = getattr(user_module, "explain_fn", None)
 
             if transform_fn and (input_fn or predict_fn or output_fn):
                 raise ValueError(
@@ -202,6 +214,8 @@ class Transformer(object):
             self._input_fn = input_fn or self._default_inference_handler.default_input_fn
             self._predict_fn = predict_fn or self._default_inference_handler.default_predict_fn
             self._output_fn = output_fn or self._default_inference_handler.default_output_fn
+            self._explain_fn = explain_fn or self._default_inference_handler.default_explain_fn
+
             if pre_model_fn is not None:
                 self._pre_model_fn = pre_model_fn
             if model_warmup_fn is not None:
@@ -211,10 +225,11 @@ class Transformer(object):
             self._input_fn = self._default_inference_handler.default_input_fn
             self._predict_fn = self._default_inference_handler.default_predict_fn
             self._output_fn = self._default_inference_handler.default_output_fn
+            self._explain_fn = self._default_inference_handler.default_explain_fn
 
             self._transform_fn = self._default_transform_fn
 
-    def _default_transform_fn(self, model, input_data, content_type, accept):
+    def _default_transform_fn(self, model, input_data, content_type, accept, enable_explanations_header=None):
         """Make predictions against the model and return a serialized response.
         This serves as the default implementation of transform_fn, used when the
         user has not provided an implementation.
@@ -233,4 +248,12 @@ class Transformer(object):
         data = self._input_fn(input_data, content_type)
         prediction = self._predict_fn(data, model)
         result = self._output_fn(prediction, accept)
+        expression_evaluator = self._expression_evaluator
+        if enable_explanations_header is not None:
+            expression_evaluator = JMESPathExpressionEvaluator(enable_explanations_header)
+        if expression_evaluator is not None:
+            enable_explanations: List[bool] = expression_evaluator.evaluate_all(result)
+            if any(enable_explanations):
+                explanations = self._explain_fn(data, model, enable_explanations)
+                return {"version":  "0.1", "predictions": result, "explanations": explanations}
         return result
